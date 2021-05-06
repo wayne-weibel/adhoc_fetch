@@ -16,13 +16,8 @@ function resolved(data, options) {
     ret.previousPage = (options.page > 1) ? options.page - 1 : null
     ret.nextPage = (_end >= data.length) ? null : options.page + 1
 
-    console.log([options, _end, data.length])
     const primaryColors = ['red', 'blue', 'yellow']
-    for (const record of data) {
-        if (ret.ids.length >= 10) { break }
-
-        if (options.colors.length && !(options.colors.includes(record.color))) { continue }
-
+    for (const record of data.slice(options.offset, _end)) {
         ret.ids.push(record.id)
         if (record.disposition == 'open') {
             record.isPrimary = primaryColors.includes(record.color)
@@ -33,12 +28,11 @@ function resolved(data, options) {
         }
     }
 
-    console.log(ret)
     return ret
 }
 
 function rejected(error) {
-    console.error(error.reason)
+    console.log(error.reason)
     return error.promise
 }
 
@@ -50,8 +44,7 @@ function retrieve(options = {}) {
     options.offset = options.limit * (options.page - 1)
 
     const url = new URI(window.path)
-    // this would seem to be the preferred way to perform the query, but does not satisfy the tests; `resolved` would be a bit simpler
-    url.addQuery({limit: 500, offset: options.offset, 'colors[]': options.colors})
+    url.addQuery({limit: 500, 'color[]': options.colors})
 
     const response = fetch(url.toString())
             .then(result => result.json())
