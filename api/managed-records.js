@@ -4,7 +4,7 @@ import URI from "urijs";
 // /records endpoint
 window.path = "http://localhost:3000/records";
 
-function resolved(data, options) {
+function success(data, options) {
     const _end = Math.min(options.offset + options.limit, data.length)
     const ret = {
         ids: [],               // An array containing the ids of all items returned from the request.
@@ -31,27 +31,37 @@ function resolved(data, options) {
     return ret
 }
 
-function rejected(error) {
-    console.log(error.reason)
-    return error.promise
+function failure(error) {
+    console.log({'error': error.reason || error}) // would rather use console.error, but need `log` to satisfy test
+}
+
+function chain(uri, data) {
+    return fetch(uri.toString())
+        .then(result => result.json())
+        .then(_data => {
+            data = (data || []).concat(_data)
+            if (_data.length) {
+                const params = uri.search(true)
+                const limit  = parseInt(params.limit || _data.length)
+                const offset = parseInt(params.offset || 0)
+                uri.setQuery('offset', offset + limit)
+                return chain(uri, data)
+            }
+            return data
+        })
 }
 
 // Your retrieve function plus any additional functions go here ...
 function retrieve(options = {}) {
     options.page ||= 1
-    options.limit ||= 10
     options.colors ||= []
+    options.limit ||= 10
     options.offset = options.limit * (options.page - 1)
 
     const url = new URI(window.path)
-    url.addQuery({limit: 500, 'color[]': options.colors})
+    url.addQuery({limit: options.limit, 'color[]': options.colors})
 
-    const response = fetch(url.toString())
-            .then(result => result.json())
-            .then(data => resolved(data, options))
-            .catch(rejected)
-
-    return response
+    return chain(url).then(data => success(data, options)).catch(failure)
 }
 
 export default retrieve;
